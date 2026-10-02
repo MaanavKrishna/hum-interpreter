@@ -3,6 +3,11 @@
 Numbers below match README.md as of the final evaluation run. If you retrain,
 rerun `ml/report.py` and update them.
 
+## Links
+
+- Live demo: https://maanavkrishna.github.io/hum-interpreter/
+- Code: https://github.com/MaanavKrishna/hum-interpreter
+
 ## Title
 
 Hum: a personal interpreter for nonverbal vocalizations

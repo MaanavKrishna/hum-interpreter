@@ -12,6 +12,8 @@ everyone else. It runs entirely in the browser. Audio never leaves the device.
 
 Built for the ML Empowerment Build Challenge 3.0.
 
+**Live demo:** https://maanavkrishna.github.io/hum-interpreter/
+
 ## What it does
 
 | | |
@@ -24,7 +26,7 @@ Built for the ML Empowerment Build Challenge 3.0.
 | **Passport** | A printable page for a new caregiver: each meaning, example sounds, what helps, and how far to trust Hum on it. |
 | **How well it works** | The full evaluation, including the parts that are unflattering. |
 
-## Run it
+## Run it locally
 
 ```bash
 python serve.py
