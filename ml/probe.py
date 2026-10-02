@@ -26,6 +26,9 @@ MODELS = {
     "distilhubert": "ntu-spml/distilhubert",
     "whisper-tiny": "openai/whisper-tiny",
     "wav2vec2-base": "facebook/wav2vec2-base",
+    # wav2vec 2.0 pretrained on 125 h of nonverbal vocalizations. Its unlabeled pretraining
+    # audio included ReCANVo, so its score here has a small transductive advantage.
+    "voc2vec": "alkiskoudounas/voc2vec-ls-pt",
 }
 
 

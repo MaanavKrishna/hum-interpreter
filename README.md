@@ -22,6 +22,8 @@ Built for the ML Empowerment Build Challenge 3.0.
 |---|---|
 | **Listen** | Tap, let the person vocalize, tap again. Hum answers with the likely meaning. |
 | **Honest answers** | Hum returns a *set* of meanings sized by conformal prediction. One meaning when it is sure, two when torn, "maybe" when it is not. It does not bluff. |
+| **Keep listening** | Hands-free mode: Hum picks out each sound on its own and keeps a strip of what it just heard. |
+| **Upset alert** | Raised when two or more sounds in 45 seconds lean upset. Dependable for three of the eight voices (about 7 in 10 upset sounds caught, under 5% false alarms); the passport says when it is not. Caregivers choose which meanings count. |
 | **Teach** | One tap on the right meaning updates that person's model on the spot. No server, no retraining. |
 | **Start a new voice** | Teach Hum any voice from zero, including your own. Three examples per meaning are enough to try it; accuracy keeps improving with more. |
 | **Voice map** | Every sound of one person, laid out by similarity and coloured by meaning. |
@@ -66,6 +68,7 @@ Scored on 2244 vocalizations from recording sessions held out per person. Macro-
 |---|---|
 | Always guess the commonest | 0.15 |
 | MFCC + logistic regression | 0.30 |
+| voc2vec (nonverbal-vocalization model), frozen | 0.31 |
 | DistilHuBERT, frozen | 0.32 |
 | wav2vec 2.0 base, frozen | 0.33 |
 | Whisper-tiny encoder, frozen | 0.34 |
@@ -109,8 +112,33 @@ What did not help:
 - Ensemble of three Hum encoders with different seeds (train.py seed): 0.38.
 - Adding the previous sounds in the session as context (window chosen on calib): 0.38.
 - Hum and frozen Whisper-tiny combined: 0.39.
+- Pretraining the encoder on EmoGator, 32,130 vocal bursts, then fine-tuning (emogator.py, train.py emogator): 0.38.
+- Pitch, timing and loudness-dynamics features fused with Hum (prosody.py; 0.28 on their own): 0.37.
+- Rhythm of vocalising (gaps, sounds per 30 s) fused with Hum (context.py; 0.28 on its own): 0.39.
+- Time of day fused with Hum (context.py): 0.33.
 
 The last four were attempts to beat the shipped model. None moved the score past 0.39, level with Hum within noise. The limit is the data (eight people, sessions that differ more than meanings do), not the model.
+
+**Stricter check: five-fold, session-grouped cross-validation** (`crossval.py`). Five encoders, each leaving out a different fifth of every person's sessions; all 6626 sounds scored once by an encoder that never heard their session. More meanings per person are scored than in the single split, so the task is harder.
+
+- Macro-F1 0.34 against 0.13 for always guessing the commonest meaning (fold-to-fold spread 0.02).
+- Right meaning among the top two: 69%.
+- Plain accuracy 48% against 49% for the guesser: a tie. Hum's advantage is on the rarer meanings.
+- Upset versus not upset, per-person AUC: 0.73 on average.
+- The app's alert rule (two or more sounds in 45 s leaning upset) catches 41% of upset sounds with 5% false alarms on average, but the average hides a split:
+
+| Voice | Meanings | Macro-F1 | Top two | Upset AUC | Upset caught | False alarms |
+|---|---|---|---|---|---|---|
+| P01 | 6 | 0.35 | 56% | 0.61 | 10% | 1% |
+| P02 | 4 | 0.20 | 54% | 0.63 | 2% | 0% |
+| P03 | 5 | 0.44 | 79% | 0.71 | 80% | 33% |
+| P05 | 6 | 0.36 | 72% | 0.84 | 67% | 4% |
+| P06 | 5 | 0.26 | 56% | 0.57 | 3% | 0% |
+| P08 | 7 | 0.26 | 78% | 0.90 | 73% | 1% |
+| P11 | 6 | 0.20 | 64% | 0.66 | 14% | 1% |
+| P16 | 4 | 0.64 | 91% | 0.93 | 76% | 0% |
+
+The cross-validated numbers are lower than the single split and are the ones to trust.
 
 Paired bootstrap over test clips (2,000 draws). Hum macro-F1 0.38, 95% interval 0.35 to 0.40. Gap to each comparison:
 
@@ -126,6 +154,11 @@ Every interval excludes zero. Caveat: clips from one session are not independent
 
 ### Reading these numbers
 
+- **Trust the cross-validated numbers.** The five-fold check gives macro-F1 0.34,
+  lower than the single split's 0.38, and shows Hum only ties a commonest-meaning
+  guesser on plain accuracy. Its gain is on the rarer meanings.
+- **Telling upset from not upset is what works best**, and only for some people:
+  AUC 0.84 to 0.93 for three voices, 0.57 to 0.71 for the other five.
 - **This is a hard problem and the scores are modest.** Hum roughly doubles
   always-guess-the-commonest-meaning and scores above MFCC features and three
   large pretrained speech models (gaps of 0.04 to 0.08, bootstrap intervals
@@ -173,6 +206,9 @@ ml/evaluate.py    scoring, calibration, conformal sets, ONNX export, app bundle
 ml/significance.py  paired bootstrap of Hum against each comparison model
 ml/report.py      writes the results section of this file
 ml/emogator.py    pretraining on the EmoGator vocal-burst corpus
+ml/crossval.py    five-fold session-grouped cross-validation, incl. replay of the alert rule
+ml/prosody.py     pitch, timing and loudness-dynamics features (did not help)
+ml/context.py     time-of-day and vocal-rhythm features (did not help)
 web/              the app: static files, onnxruntime-web, service worker, no backend
 docs/screenshots  images for the submission
 ```
@@ -189,6 +225,8 @@ cd data && unzip -q ReCANVo.zip && cd ../ml
 ../.venv/bin/python train.py shipped 40
 ../.venv/bin/python train.py xsession 24
 ../.venv/bin/python train.py lopo 15
+../.venv/bin/python emogator.py cache && ../.venv/bin/python emogator.py pretrain 15   # needs data/EmoGator
+../.venv/bin/python crossval.py 30 && ../.venv/bin/python crossval.py score
 ../.venv/bin/python evaluate.py && ../.venv/bin/python significance.py && ../.venv/bin/python report.py
 ```
 

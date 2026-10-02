@@ -126,6 +126,17 @@ main { flex: 1; padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 4vw, 3rem); max-wi
 .file-pick { display: block; font-size: 0.9rem; color: var(--slate); margin: 0 0 1.4rem; }
 .file-pick input { display: block; margin-top: 0.3rem; font: inherit; max-width: 100%; }
 
+.live-hint { margin-top: 0.5rem; }
+#live[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+.alert { background: #fbe4df; border-left: 6px solid #cf3f2b; padding: 0.9rem 1.1rem; margin: 0 0 1.4rem; max-width: 520px; font-size: 1.1rem; font-weight: 700; }
+.alert span { display: block; font-weight: 400; font-size: 0.95rem; margin-top: 0.2rem; }
+
+.recent { list-style: none; padding: 0; margin: 0.4rem 0 0; display: flex; flex-wrap: wrap; gap: 0.35rem; max-width: 520px; }
+.recent li { background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.9rem; }
+.recent li.unsure { color: var(--slate); }
+#recent-wrap { margin-top: 1.4rem; }
+
 .samples { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
 .samples button, .teach-buttons button, .plain-btn, .new-meaning button {
@@ -191,8 +202,10 @@ main { flex: 1; padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 4vw, 3rem); max-wi
 .meaning-name { font-family: var(--display); font-weight: 700; font-size: 1.35rem; line-height: 1.15; }
 .meaning-row textarea { width: 100%; min-height: 4.2rem; resize: vertical; }
 .meaning-row .hint { margin: 0.2rem 0 0.5rem; }
+.alert-toggle { display: flex; gap: 0.4rem; align-items: flex-start; font-size: 0.9rem; margin-top: 0.6rem; }
 .reliability { font-size: 0.9rem; color: var(--slate); }
 
+.alert-note { max-width: 66ch; margin: -0.8rem 0 1.4rem; padding-left: 0.8rem; border-left: 4px solid var(--ink); }
 .handoff { margin: 0 0 1.6rem; }
 .handoff-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
 .file-btn { position: relative; display: inline-block; }

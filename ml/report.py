@@ -30,6 +30,20 @@ lines += ["", "What did not help:", "", f"- Frozen pretrained speech encoders: b
 lines += [f"- {a['idea']}: {a['f1']:.2f}." for a in r.get("attempts", [])]
 lines += ["", "The last four were attempts to beat the shipped model. None moved the score past 0.39, level with Hum within noise. The limit is the data (eight people, sessions that differ more than meanings do), not the model."]
 
+cv = r.get("cv")
+if cv:
+    lines += ["", f"**Stricter check: five-fold, session-grouped cross-validation** (`crossval.py`). Five encoders, each leaving out a different fifth of every person's sessions; all {cv['n']} sounds scored once by an encoder that never heard their session. More meanings per person are scored than in the single split, so the task is harder.", "",
+              f"- Macro-F1 {cv['f1']:.2f} against {cv['majority_f1']:.2f} for always guessing the commonest meaning (fold-to-fold spread {cv['fold_f1_sd']:.2f}).",
+              f"- Right meaning among the top two: {cv['top2']:.0%}.",
+              f"- Plain accuracy {cv['acc']:.0%} against {cv['majority_acc']:.0%} for the guesser: a tie. Hum's advantage is on the rarer meanings.",
+              f"- Upset versus not upset, per-person AUC: {cv['distress_auc']:.2f} on average.",
+              f"- The app's alert rule (two or more sounds in 45 s leaning upset) catches {cv['alert_recall']:.0%} of upset sounds with {cv['alert_false_alarm']:.0%} false alarms on average, but the average hides a split:", "",
+              "| Voice | Meanings | Macro-F1 | Top two | Upset AUC | Upset caught | False alarms |", "|---|---|---|---|---|---|---|"]
+    f = lambda x, pct=True: "n/a" if x is None else (f"{x:.0%}" if pct else f"{x:.2f}")
+    for p in cv["people"]:
+        lines.append(f"| {p['id']} | {p['labels']} | {p['f1']:.2f} | {p['top2']:.0%} | {f(p['auc'], False)} | {f(p['recall'])} | {f(p['falseAlarm'])} |")
+    lines += ["", "The cross-validated numbers are lower than the single split and are the ones to trust."]
+
 sig_path = ROOT / "runs" / "significance.json"
 if sig_path.exists():
     sig = json.load(open(sig_path))

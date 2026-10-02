@@ -37,6 +37,8 @@ caregiver.
 - Answers are prediction sets with a statistical coverage guarantee (conformal
   prediction), not forced single guesses.
 - A caregiver can start a brand-new voice from zero; it improves with each sound taught.
+- Keep listening: hands-free mode that segments each sound and shows what it just heard.
+- Upset alert: fires when several recent sounds lean upset; measured per voice, and the app says when it is not dependable.
 - Hand-off file: a taught voice saves to a 4 KB file and loads on another device.
 - Works offline after the first visit.
 - Voice map: one person's sounds laid out by similarity.
@@ -72,7 +74,13 @@ Macro-F1, averaged over eight people:
 | Hum, encoder never heard this person | 0.34 |
 | **Hum** | **0.38** |
 
-- Hum's plain accuracy is 0.50. It is a hint, not an answer.
+- Stricter five-fold cross-validation over all 6,626 scorable sounds: macro-F1 0.34
+  against 0.13 for the guesser; right meaning in the top two 69% of the time.
+  On plain accuracy Hum only ties the guesser (48% against 49%).
+- Upset versus not upset: AUC 0.84 to 0.93 for three voices, where the alert
+  catches about 7 in 10 upset sounds with under 5% false alarms. Not dependable
+  for the other five, and the app says so.
+- Hum's plain accuracy on the single split is 0.50. It is a hint, not an answer.
 - Hum's lead over each comparison model is 0.04 to 0.08 macro-F1; paired
   bootstrap 95% intervals exclude zero (with the caveat that eight people is few).
 - Leakage: the same MFCC model scores 0.47 if clips from one session sit on both
@@ -89,7 +97,9 @@ Macro-F1, averaged over eight people:
   rather than hide it.
 - Random train/test splits leak the recording session and inflate scores. We
   rebuilt the evaluation around whole sessions.
-- Seven attempts to raise accuracy failed to help: three frozen pretrained
+- Eleven attempts to raise accuracy failed to help (latest: pretraining on
+  32,130 vocal bursts, a nonverbal-vocalization foundation model, pitch and rhythm
+  features). Earlier seven: three frozen pretrained
   speech models, fine-tuning one of them, a cross-session contrastive loss, a
   three-model ensemble, session context, and active learning. We report them all.
 
@@ -123,7 +133,7 @@ therapists, and sitters who meet them for the first time.
 
 ## Screenshots to upload
 
-In `docs/screenshots/`: confident answer, torn answer, voice map, passport, evidence.
+In `docs/screenshots/`: confident answer, torn answer, voice map, passport, evidence, keep-listening alert.
 
 ## Credit line to include
 

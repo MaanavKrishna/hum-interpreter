@@ -126,3 +126,109 @@ export class Recorder {
     return trimSilence(wav);
   }
 }
+
+// ---------- continuous listening ----------
+
+// Cuts a live stream into separate vocalizations by loudness. Pure logic, so it can
+// be tested by pushing recorded audio through it. Feed 16 kHz samples in any chunk size.
+export class Segmenter {
+  constructor({ frame = 320, hangFrames = 20, preFrames = 8, minSeconds = 0.3, maxSeconds = 4 } = {}) {
+    Object.assign(this, { frame, hangFrames, preFrames, minSeconds, maxSeconds });
+    this.pending = new Float32Array(0);
+    this.pre = []; // recent quiet frames, kept so the start of a sound is not clipped
+    this.active = null; // frames of the sound in progress
+    this.quiet = 0;
+    this.floor = 0.005; // running estimate of room noise
+    this.level = 0;
+  }
+
+  push(samples) {
+    const merged = new Float32Array(this.pending.length + samples.length);
+    merged.set(this.pending);
+    merged.set(samples, this.pending.length);
+    const done = [];
+    let i = 0;
+    for (; i + this.frame <= merged.length; i += this.frame) {
+      const f = merged.subarray(i, i + this.frame);
+      let s = 0;
+      for (let k = 0; k < f.length; k++) s += f[k] * f[k];
+      const rms = Math.sqrt(s / f.length);
+      this.level = rms;
+      const loud = rms > Math.max(0.012, this.floor * 4);
+      if (!this.active) {
+        // The floor follows quiet frames down quickly and creeps up slowly.
+        this.floor = rms < this.floor ? rms * 0.5 + this.floor * 0.5 : this.floor * 0.995 + rms * 0.005;
+        if (loud) {
+          this.active = [...this.pre, f.slice()];
+          this.quiet = 0;
+        } else {
+          this.pre.push(f.slice());
+          if (this.pre.length > this.preFrames) this.pre.shift();
+        }
+        continue;
+      }
+      this.active.push(f.slice());
+      this.quiet = loud ? 0 : this.quiet + 1;
+      const seconds = (this.active.length * this.frame) / SAMPLE_RATE;
+      if (this.quiet >= this.hangFrames || seconds >= this.maxSeconds) {
+        const keep = this.active.length - Math.max(0, this.quiet - 4);
+        if ((keep * this.frame) / SAMPLE_RATE >= this.minSeconds) {
+          const out = new Float32Array(keep * this.frame);
+          for (let k = 0; k < keep; k++) out.set(this.active[k], k * this.frame);
+          done.push(out);
+        }
+        this.active = null;
+        this.pre = [];
+      }
+    }
+    this.pending = merged.slice(i);
+    return done;
+  }
+}
+
+const TAP = `class Tap extends AudioWorkletProcessor {
+  process(inputs) { const c = inputs[0][0]; if (c) this.port.postMessage(c.slice(0)); return true; }
+}
+registerProcessor('tap', Tap);`;
+
+// Keeps the microphone open and calls onSound(wav) for each vocalization it hears.
+export class LiveListener {
+  constructor({ onSound, onLevel = () => {} }) {
+    this.onSound = onSound;
+    this.onLevel = onLevel;
+    this.segmenter = new Segmenter();
+  }
+
+  async start() {
+    this.stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    });
+    const c = audioContext();
+    await c.resume();
+    const url = URL.createObjectURL(new Blob([TAP], { type: 'application/javascript' }));
+    await c.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+    this.source = c.createMediaStreamSource(this.stream);
+    this.node = new AudioWorkletNode(c, 'tap');
+    const ratio = c.sampleRate / SAMPLE_RATE;
+    this.node.port.onmessage = (e) => {
+      let chunk = e.data;
+      if (ratio !== 1) {
+        // Browser refused 16 kHz: pick nearest samples. Crude, but only loudness and a short clip depend on it.
+        const out = new Float32Array(Math.floor(chunk.length / ratio));
+        for (let i = 0; i < out.length; i++) out[i] = chunk[Math.floor(i * ratio)];
+        chunk = out;
+      }
+      for (const wav of this.segmenter.push(chunk)) this.onSound(wav);
+      this.onLevel(Math.min(1, this.segmenter.level * 6));
+    };
+    this.source.connect(this.node);
+  }
+
+  stop() {
+    this.node?.port.close();
+    this.source?.disconnect();
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.onLevel(0);
+  }
+}

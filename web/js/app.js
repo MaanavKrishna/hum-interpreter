@@ -1,16 +1,23 @@
 import { Voice, embed, loadModel } from './engine.js';
-import { Recorder, loadClip, loadFile, play } from './audio.js';
+import { LiveListener, Recorder, loadClip, loadFile, play } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
 const SPARE_COLOURS = ['#0f8b8d', '#b5651d', '#6a4c93', '#3d7a2a', '#c2185b', '#5d6d7e'];
 const STORE = 'hum.voices.v1';
 const NOTES = 'hum.notes.v1';
+const ALERTS = 'hum.alerts.v1';
+// Meanings that raise the alert unless the caregiver says otherwise.
+const UPSET = new Set(['frustrated', 'dysregulated', 'protest', 'dysregulation-sick', 'dysregulation-bathroom', 'pain', 'scared', 'upset', 'distress']);
+const ALERT_WINDOW = 45; // seconds of recent sounds the alert looks at
+const ALERT_DECAY = 20;
 
 let bundle;
 let voices = []; // { voice: Voice, person: bundle person or null, examples: [] for custom }
 let current;
 let lastEmb = null;
 let recorder = null;
+let live = null;
+let recent = []; // { at, label, sure, upset } for sounds heard while listening continuously
 
 // ---------- storage (best effort: the app works without it) ----------
 function readStore(key, fallback) {
@@ -124,6 +131,8 @@ function selectVoice(id) {
     current = voices.find((v) => v.voice.id === id);
   }
   lastEmb = null;
+  recent = [];
+  renderRecent();
   fillVoicePicker();
   renderIdle();
   renderSamples();
@@ -241,7 +250,33 @@ function teach(label) {
   renderPassport();
 }
 
-async function hear(wav, { playIt = false, truth = null } = {}) {
+// ---------- alert: several upset sounds close together ----------
+function alertsOn(label) {
+  const saved = readStore(ALERTS, {})[`${current.voice.id}|${label}`];
+  return saved ?? UPSET.has(label);
+}
+
+function upsetProbability(result) {
+  return result.ranked.filter((r) => alertsOn(r.label)).reduce((s, r) => s + r.p, 0);
+}
+
+// Recent sounds vote, newer ones count more. One sound alone never raises the alert.
+function renderRecent() {
+  const now = Date.now() / 1000;
+  recent = recent.filter((r) => now - r.at <= 300).slice(-12);
+  $('recent-wrap').hidden = recent.length === 0;
+  $('recent').innerHTML = recent
+    .map((r) => `<li class="${r.sure ? '' : 'unsure'}">${dot(r.label)}${esc(meaning(r.label).title)}${r.sure ? '' : '?'}</li>`)
+    .join('');
+  const win = recent.filter((r) => now - r.at <= ALERT_WINDOW);
+  const weights = win.map((r) => Math.exp(-(now - r.at) / ALERT_DECAY));
+  const score = win.length ? win.reduce((s, r, i) => s + weights[i] * r.upset, 0) / weights.reduce((a, b) => a + b, 0) : 0;
+  const box = $('alert');
+  box.hidden = !(win.length >= 2 && score >= 0.5);
+  if (!box.hidden) box.innerHTML = `${esc(current.voice.name)} may be upset.<span>${win.length} sounds in the last ${ALERT_WINDOW} seconds lean that way. Check on them.</span>`;
+}
+
+async function hear(wav, { playIt = false, truth = null, track = false } = {}) {
   const ear = $('ear');
   if (!wav) {
     $('answer-main').textContent = 'Too quiet.';
@@ -254,7 +289,12 @@ async function hear(wav, { playIt = false, truth = null } = {}) {
   try {
     if (playIt) play(wav);
     lastEmb = await embed(wav);
-    renderAnswer(current.voice.interpret(lastEmb), truth);
+    const result = current.voice.interpret(lastEmb);
+    renderAnswer(result, truth);
+    if (track && result.ranked.length) {
+      recent.push({ at: Date.now() / 1000, label: result.ranked[0].label, sure: result.set.length === 1, upset: upsetProbability(result) });
+      renderRecent();
+    }
     if (window.matchMedia('(max-width: 760px)').matches) $('answer').scrollIntoView({ block: 'start', behavior: 'smooth' });
     if (current.voice.labels.length === 0) {
       $('answer-main').textContent = 'Heard it.';
@@ -267,6 +307,46 @@ async function hear(wav, { playIt = false, truth = null } = {}) {
     $('answer-sub').textContent = `Check your connection and reload the page. (${err.message})`;
   } finally {
     ear.disabled = false;
+  }
+}
+
+async function toggleLive() {
+  const btn = $('live');
+  const ear = $('ear');
+  if (live) {
+    live.stop();
+    live = null;
+    btn.setAttribute('aria-pressed', 'false');
+    btn.textContent = 'Keep listening';
+    ear.disabled = false;
+    $('ear-hint').textContent = 'Tap, let them vocalize, tap again. Up to 3 seconds.';
+    return;
+  }
+  try {
+    let busy = false;
+    live = new LiveListener({
+      onLevel: (l) => ear.style.setProperty('--level', l.toFixed(3)),
+      onSound: async (wav) => {
+        if (busy) return; // one sound at a time; the next is picked up when this one is answered
+        busy = true;
+        await hear(wav, { track: true });
+        ear.disabled = true;
+        busy = false;
+      },
+    });
+    await live.start();
+    btn.setAttribute('aria-pressed', 'true');
+    btn.textContent = 'Stop listening';
+    ear.disabled = true;
+    $('ear-hint').textContent = 'Listening on its own. The ring moves with the sound it hears.';
+    $('answer-main').textContent = 'Listening.';
+    $('answer-sub').textContent = 'Hum will answer each sound it hears. Leave this open nearby.';
+    $('bars').hidden = true;
+    $('truth').hidden = true;
+  } catch {
+    live = null;
+    $('answer-main').textContent = 'No microphone.';
+    $('answer-sub').textContent = 'Allow microphone access in your browser, or play one of the recordings instead.';
   }
 }
 
@@ -343,6 +423,12 @@ function renderPassport() {
   const v = current.voice;
   const notes = readStore(NOTES, {});
   $('passport-title').textContent = `${v.name}: communication passport`;
+  const cvp = bundle.results.cv?.people.find((p) => p.id === current.person?.id);
+  $('alert-note').textContent = !cvp || cvp.recall == null
+    ? 'Upset alert: not yet measured for this voice. Treat it as a prompt to look, nothing more.'
+    : cvp.recall >= 0.6 && cvp.falseAlarm <= 0.1
+      ? `Upset alert: dependable for this voice. In testing it caught about ${Math.round(cvp.recall * 10)} in 10 upset sounds and raised a false alarm on ${Math.max(1, Math.round(cvp.falseAlarm * 100))} in 100 calm ones.`
+      : `Upset alert: not dependable for this voice (caught ${Math.round(cvp.recall * 100)}% of upset sounds, false alarms on ${Math.round(cvp.falseAlarm * 100)}% of calm ones). Do not rely on it.`;
   const body = $('passport-body');
   if (v.labels.length === 0) {
     body.innerHTML = '<p>Teach this voice a few sounds on the Listen tab and its passport will appear here.</p>';
@@ -364,7 +450,12 @@ function renderPassport() {
     row.innerHTML = `
       <div><div class="meaning-name">${dot(label)}${esc(m.title)}</div><p class="hint">${esc(m.plain)}</p></div>
       <div><label class="hint" for="n-${esc(key)}">What helps</label><textarea id="n-${esc(key)}" placeholder="For example: offer the picture board, then wait.">${esc(notes[key] || '')}</textarea></div>
-      <div><div class="play-row samples"></div><p class="reliability">${rel}</p></div>`;
+      <div><div class="play-row samples"></div><p class="reliability">${rel}</p><label class="alert-toggle"><input type="checkbox" ${alertsOn(label) ? 'checked' : ''}> Alert me when several sounds in a row mean this</label></div>`;
+    row.querySelector('.alert-toggle input').addEventListener('change', (e) => {
+      const all = readStore(ALERTS, {});
+      all[key] = e.target.checked;
+      writeStore(ALERTS, all);
+    });
     row.querySelector('textarea').addEventListener('input', (e) => {
       const all = readStore(NOTES, {});
       all[key] = e.target.value;
@@ -402,6 +493,7 @@ function exportVoice() {
     temperature: v.temperature,
     qhat: v.qhat,
     notes: voiceNotes(v.id),
+    alerts: Object.fromEntries(v.labels.map((l) => [l, alertsOn(l)])),
   };
   const url = URL.createObjectURL(new Blob([JSON.stringify(file)], { type: 'application/json' }));
   const a = Object.assign(document.createElement('a'), { href: url, download: `${v.name.replace(/[^\w-]+/g, '-').toLowerCase()}.hum.json` });
@@ -431,6 +523,9 @@ async function importVoice(file) {
   const notes = readStore(NOTES, {});
   for (const [label, text] of Object.entries(data.notes ?? {})) notes[`${id}|${label}`] = String(text).slice(0, 2000);
   writeStore(NOTES, notes);
+  const alerts = readStore(ALERTS, {});
+  for (const [label, on] of Object.entries(data.alerts ?? {})) alerts[`${id}|${label}`] = Boolean(on);
+  writeStore(ALERTS, alerts);
   saveCustom();
   selectVoice(id);
   $('voice-file-status').textContent = `Loaded ${name} with ${entry.voice.labels.length} meanings. It is ready on the Listen tab.`;
@@ -439,6 +534,28 @@ async function importVoice(file) {
 // ---------- evidence ----------
 function hbar(name, value, cls = '') {
   return `<div class="hbar ${cls}"><span>${name}</span><span class="hbar-track"><span class="hbar-fill" style="display:block;width:${(value * 100).toFixed(1)}%"></span></span><span class="hbar-val">${value.toFixed(2)}</span></div>`;
+}
+
+function cvBlock(cv) {
+  if (!cv) return '';
+  const pct = (x) => (x == null ? 'n/a' : `${Math.round(x * 100)}%`);
+  const rows = cv.people
+    .map((p) => `<tr><td>Voice ${p.id.slice(1)}</td><td>${p.labels}</td><td>${p.f1.toFixed(2)}</td><td>${pct(p.top2)}</td><td>${p.auc == null ? 'n/a' : p.auc.toFixed(2)}</td><td>${pct(p.recall)}</td><td>${pct(p.falseAlarm)}</td></tr>`)
+    .join('');
+  return `
+    <div class="ev-block">
+      <h2>The stricter check: every session tested once</h2>
+      <p>One split tests each person on a handful of sessions, which is a noisy estimate. So we also trained five encoders, each leaving out a different fifth of every person's sessions, and scored all ${cv.n} sounds by an encoder that never heard their session. More meanings per person are scored here, so the task is harder.</p>
+      ${hbar('Always guess the commonest', cv.majority_f1)}
+      ${hbar('Hum, five-fold', cv.f1, 'ours')}
+      <p style="margin-top:.8rem">Macro-F1 ${cv.f1.toFixed(2)} (folds vary by about ${cv.fold_f1_sd.toFixed(2)}). The right meaning is among Hum's top two ${pct(cv.top2)} of the time. On plain accuracy Hum only ties guessing the commonest meaning (${pct(cv.acc)} against ${pct(cv.majority_acc)}): its advantage is recognising the rarer meanings a guesser never names. This lower number is the one to trust.</p>
+    </div>
+    <div class="ev-block">
+      <h2>The upset alert</h2>
+      <p>While listening continuously, Hum raises an alert when at least two sounds in the last 45 seconds lean upset. Replaying that exact rule over every session, five-fold:</p>
+      <table class="ev"><thead><tr><th>Voice</th><th>Meanings</th><th>Macro-F1</th><th>Top two</th><th>Upset vs not (AUC)</th><th>Upset sounds caught</th><th>False alarms</th></tr></thead><tbody>${rows}</tbody></table>
+      <p style="margin-top:.8rem">For voices 05, 08 and 16 the alert catches about seven in ten upset sounds with almost no false alarms. For the others it is not dependable: it misses most upset sounds, or (voice 03) cries wolf. The passport says which kind each voice is.</p>
+    </div>`;
 }
 
 function renderEvidence() {
@@ -459,6 +576,7 @@ function renderEvidence() {
       <p>People differ a lot. Hum is a hint, and for some voices a weak one.</p>
       <table class="ev"><thead><tr><th>Voice</th><th>Meanings</th><th>Test sounds</th><th>Always guess commonest</th><th>MFCC baseline</th><th>Hum</th><th>Hum, never heard this person</th></tr></thead><tbody>${rows}</tbody></table>
     </div>
+    ${cvBlock(r.cv)}
     <div class="ev-block">
       <h2>Saying "not sure" when it should</h2>
       <p>With accuracy this modest, a single forced guess would mislead. Hum instead offers a set of meanings sized, by split conformal prediction, so the right one is inside about ${Math.round(c.target * 100)}% of the time. Thresholds were fit on sessions used for nothing else, then checked on test sessions:</p>
@@ -508,6 +626,7 @@ async function main() {
   renderEvidence();
   $('voice').addEventListener('change', (e) => selectVoice(e.target.value));
   $('ear').addEventListener('click', toggleEar);
+  $('live').addEventListener('click', toggleLive);
   $('file').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;

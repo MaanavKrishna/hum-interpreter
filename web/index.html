@@ -38,6 +38,8 @@
             <span class="ear-label">Listen</span>
           </button>
           <p id="ear-hint" class="hint">Tap, let them vocalize, tap again. Up to 3 seconds.</p>
+          <button id="live" class="plain-btn" aria-pressed="false">Keep listening</button>
+          <p class="hint live-hint">Hands-free: Hum picks out each sound by itself and watches for several upset sounds in a row.</p>
           <label class="file-pick">Or use a sound file <input id="file" type="file" accept="audio/*"></label>
           <div id="samples-wrap">
             <h2 class="quiet-h">Or play a real recording</h2>
@@ -47,12 +49,17 @@
         </div>
 
         <div class="answer-col" aria-live="polite">
+          <div id="alert" class="alert" role="alert" hidden></div>
           <div id="answer" class="answer">
             <p class="answer-main" id="answer-main">Every sound means something.</p>
             <p class="answer-sub" id="answer-sub">Hum learns one person's sounds from the people who know them best, then helps everyone else understand. Pick a voice, then listen.</p>
           </div>
           <div id="bars" class="bars" hidden></div>
           <p id="truth" class="truth" hidden></p>
+          <div id="recent-wrap" hidden>
+            <h2 class="quiet-h">Sounds just heard</h2>
+            <ol id="recent" class="recent"></ol>
+          </div>
           <div id="teach" class="teach" hidden>
             <h2 class="quiet-h" id="teach-h">What did it mean?</h2>
             <p class="hint" id="teach-hint">One tap teaches Hum. It learns on this device straight away.</p>
@@ -82,6 +89,7 @@
         <div>
           <h1 id="passport-title">Communication passport</h1>
           <p class="lede">A page to hand to a new teacher, nurse, or sitter. Add what helps in your own words, then print it.</p>
+          <p id="alert-note" class="alert-note"></p>
         </div>
         <button id="print" class="plain-btn">Print passport</button>
       </div>

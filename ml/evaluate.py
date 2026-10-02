@@ -139,12 +139,27 @@ def conformal_table(conf_data, targets=(0.7, 0.8, 0.9)):
     return {**next(r for r in rows if r["target"] == COVERAGE), "table": rows}
 
 
+def cv_summary():
+    """Five-fold session-grouped cross-validation (crossval.py), trimmed for the app."""
+    path = RUNS / "cv.json"
+    if not path.exists():
+        return None
+    cv = json.load(open(path))
+    keep = ("f1", "acc", "top2", "majority_f1", "majority_acc", "distress_auc", "alert_recall", "alert_false_alarm", "fold_f1_sd", "n")
+    people = [
+        {"id": p, "labels": v["labels"], "n": v["n"], "f1": v["f1"], "top2": v["top2"], "auc": v["distress_auc"],
+         "recall": v["alert"]["recall"] if v["alert"] else None, "falseAlarm": v["alert"]["false_alarm"] if v["alert"] else None}
+        for p, v in cv["people"].items()
+    ]
+    return {**{k: cv[k] for k in keep}, "people": people}
+
+
 def pretrained_rows():
     """Frozen pretrained encoders with the same prototype head; layer chosen on calib sessions."""
     path = RUNS / "probe.json"
     if not path.exists():
         return []
-    names = {"wav2vec2-base": "wav2vec 2.0 base, frozen", "distilhubert": "DistilHuBERT, frozen", "whisper-tiny": "Whisper-tiny encoder, frozen"}
+    names = {"wav2vec2-base": "wav2vec 2.0 base, frozen", "distilhubert": "DistilHuBERT, frozen", "whisper-tiny": "Whisper-tiny encoder, frozen", "voc2vec": "voc2vec (nonverbal-vocalization model), frozen"}
     out = []
     for key, rows in json.load(open(path)).items():
         best = max(rows, key=lambda r: r["calib"])
@@ -282,6 +297,7 @@ def main():
         "curve": {"ks": ks, "f1": np.mean(curves, axis=0).round(4).tolist()},
         "active": {"ks": budgets, "random": actives[0].round(4).tolist(), "active": actives[1].round(4).tolist()},
         "lopoReady": bool(lopo),
+        "cv": cv_summary(),
         "attempts": json.load(open(ROOT / "ml" / "attempts.json"))["rows"],
         "xsession": float(np.mean([r["f1"] for r in json.load(open(RUNS / "xsession.json")).values()])),
     }
