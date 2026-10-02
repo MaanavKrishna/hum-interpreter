@@ -38,6 +38,7 @@ caregiver.
   prediction), not forced single guesses.
 - A caregiver can start a brand-new voice from zero; it improves with each sound taught.
 - Hand-off file: a taught voice saves to a 4 KB file and loads on another device.
+- Works offline after the first visit.
 - Voice map: one person's sounds laid out by similarity.
 - Communication passport: per-meaning examples, notes on what helps, and how far
   to trust the model.
@@ -119,6 +120,10 @@ therapists, and sitters who meet them for the first time.
 5. (15 s) Passport: type one "what helps" note, show print preview.
 6. (20 s) Evidence page: the bar chart, the striped inflated bar, the conformal
    table. Say the accuracy number out loud and why sets matter.
+
+## Screenshots to upload
+
+In `docs/screenshots/`: confident answer, torn answer, voice map, passport, evidence.
 
 ## Credit line to include
 

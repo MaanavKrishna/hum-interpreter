@@ -14,6 +14,8 @@ Built for the ML Empowerment Build Challenge 3.0.
 
 **Live demo:** https://maanavkrishna.github.io/hum-interpreter/
 
+![Hum answering a held-out recording](docs/screenshots/1-listen-confident.png)
+
 ## What it does
 
 | | |
@@ -24,6 +26,7 @@ Built for the ML Empowerment Build Challenge 3.0.
 | **Start a new voice** | Teach Hum any voice from zero, including your own. Three examples per meaning are enough to try it; accuracy keeps improving with more. |
 | **Voice map** | Every sound of one person, laid out by similarity and coloured by meaning. |
 | **Hand-off file** | Save a taught voice as a 4 KB file and load it on another device, so the parent teaches once and the sitter's phone understands. The file holds embeddings, not audio. |
+| **Works offline** | After one visit the app, model, and sample recordings are cached; Hum then runs with no connection. |
 | **Passport** | A printable page for a new caregiver: each meaning, example sounds, what helps, and how far to trust Hum on it. |
 | **How well it works** | The full evaluation, including the parts that are unflattering. |
 
@@ -169,7 +172,9 @@ ml/attempts.json  scores of later attempts to raise accuracy
 ml/evaluate.py    scoring, calibration, conformal sets, ONNX export, app bundle
 ml/significance.py  paired bootstrap of Hum against each comparison model
 ml/report.py      writes the results section of this file
-web/              the app: static files, onnxruntime-web, no backend
+ml/emogator.py    pretraining on the EmoGator vocal-burst corpus
+web/              the app: static files, onnxruntime-web, service worker, no backend
+docs/screenshots  images for the submission
 ```
 
 ## Reproduce

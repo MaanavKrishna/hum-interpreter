@@ -90,7 +90,7 @@ def score_person(model, clips, g):
     return {"acc": float(accuracy_score(te.label, pred)), "f1": float(f1_score(te.label, pred, average="macro")), "n_test": len(te)}
 
 
-def train_encoder(clips, rows, epochs=40, bs=64, lr=2e-3, tag="", cross_session=False, seed=SEED):
+def train_encoder(clips, rows, epochs=40, bs=64, lr=2e-3, tag="", cross_session=False, seed=SEED, init=None):
     """cross_session=True is the ablation: batches draw each meaning from several
     sessions, positives are cross-session only, and the front end normalises per band."""
     torch.manual_seed(seed)
@@ -110,6 +110,8 @@ def train_encoder(clips, rows, epochs=40, bs=64, lr=2e-3, tag="", cross_session=
     w = 1.0 / np.bincount(y_all)[y_all] ** 0.75
     w /= w.sum()
     model = HumEncoder(band_norm=cross_session).to(DEVICE)
+    if init is not None:  # start from weights pretrained on another corpus
+        model.load_state_dict(torch.load(init, map_location=DEVICE))
     head = nn.Linear(EMB_DIM, len(classes), bias=False).to(DEVICE)
     steps = len(rows) // bs
     opt = torch.optim.AdamW(list(model.parameters()) + list(head.parameters()), lr=lr, weight_decay=1e-2)
@@ -147,6 +149,13 @@ def main(mode, epochs, seed=SEED):
     clips = Clips()
     meta = fixed_split(clips.usable())
     RUNS.mkdir(exist_ok=True)
+    if mode == "emogator":  # fine-tune the EmoGator-pretrained encoder on ReCANVo train sessions
+        model = train_encoder(clips, meta[meta.split == "train"], epochs, lr=1e-3, tag="emogator-ft", init=RUNS / "pretrain_emogator.pt")
+        res = {p: score_person(model, clips, g) for p, g in meta.groupby("person")}
+        torch.save(model.state_dict(), RUNS / "emogator_ft.pt")
+        print("emogator-ft mean acc", round(np.mean([r["acc"] for r in res.values()]), 3), "mean F1", round(np.mean([r["f1"] for r in res.values()]), 3))
+        json.dump(res, open(RUNS / "emogator_ft.json", "w"), indent=1)
+        return
     if mode == "seed":  # extra ensemble member: same recipe, different initialisation and batches
         model = train_encoder(clips, meta[meta.split == "train"], epochs, tag=f"seed-{seed}", seed=seed)
         res = {p: score_person(model, clips, g) for p, g in meta.groupby("person")}
