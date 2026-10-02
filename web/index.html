@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hum</title>
+  <meta name="description" content="A personal interpreter for nonverbal vocalizations. Runs on your device.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+</head>
+<body>
+  <header class="top">
+    <a class="wordmark" href="#listen" aria-label="Hum, home">hum</a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#listen" data-tab="listen">Listen</a>
+      <a href="#map" data-tab="map">Voice map</a>
+      <a href="#passport" data-tab="passport">Passport</a>
+      <a href="#evidence" data-tab="evidence">How well it works</a>
+    </nav>
+    <label class="voice-pick">
+      <span>Whose voice</span>
+      <select id="voice"></select>
+    </label>
+  </header>
+
+  <main>
+    <section id="listen" class="view">
+      <div class="listen-grid">
+        <div class="ear-col">
+          <button id="ear" class="ear" aria-pressed="false">
+            <span class="ear-ring" aria-hidden="true"></span>
+            <span class="ear-label">Listen</span>
+          </button>
+          <p id="ear-hint" class="hint">Tap, let them vocalize, tap again. Up to 3 seconds.</p>
+          <label class="file-pick">Or use a sound file <input id="file" type="file" accept="audio/*"></label>
+          <div id="samples-wrap">
+            <h2 class="quiet-h">Or play a real recording</h2>
+            <p class="hint">From sessions the model never heard. The caregiver's label stays hidden until Hum answers.</p>
+            <div id="samples" class="samples"></div>
+          </div>
+        </div>
+
+        <div class="answer-col" aria-live="polite">
+          <div id="answer" class="answer">
+            <p class="answer-main" id="answer-main">Every sound means something.</p>
+            <p class="answer-sub" id="answer-sub">Hum learns one person's sounds from the people who know them best, then helps everyone else understand. Pick a voice, then listen.</p>
+          </div>
+          <div id="bars" class="bars" hidden></div>
+          <p id="truth" class="truth" hidden></p>
+          <div id="teach" class="teach" hidden>
+            <h2 class="quiet-h" id="teach-h">What did it mean?</h2>
+            <p class="hint" id="teach-hint">One tap teaches Hum. It learns on this device straight away.</p>
+            <div id="teach-buttons" class="teach-buttons"></div>
+            <form id="new-meaning" class="new-meaning">
+              <input id="new-meaning-input" type="text" maxlength="24" placeholder="A different meaning" aria-label="A different meaning">
+              <button type="submit">Teach</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <p class="privacy">Sound is analysed on this device and then discarded. Nothing is uploaded.</p>
+    </section>
+
+    <section id="map" class="view" hidden>
+      <h1>One person's sounds, laid out by how alike they are</h1>
+      <p class="lede">Each dot is one vocalization. Dots that sit together sound alike to Hum. Colour is the meaning the caregiver gave. Where colours separate, Hum can tell meanings apart; where they mix, it will say it is not sure.</p>
+      <div class="map-wrap">
+        <svg id="map-svg" viewBox="0 0 600 440" role="img" aria-label="Map of vocalizations"></svg>
+        <div id="map-legend" class="legend"></div>
+      </div>
+      <p class="hint" id="map-note"></p>
+    </section>
+
+    <section id="passport" class="view" hidden>
+      <div class="passport-head">
+        <div>
+          <h1 id="passport-title">Communication passport</h1>
+          <p class="lede">A page to hand to a new teacher, nurse, or sitter. Add what helps in your own words, then print it.</p>
+        </div>
+        <button id="print" class="plain-btn">Print passport</button>
+      </div>
+      <div id="passport-body" class="passport-body"></div>
+    </section>
+
+    <section id="evidence" class="view" hidden>
+      <h1>How well it works, measured honestly</h1>
+      <p class="lede">Scores below come from recording sessions the model never heard. Clips from one session share a room, a microphone, and a mood, so mixing them across train and test flatters any model. We show that inflated number too, so you can see the difference.</p>
+      <div id="evidence-body"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Built on ReCANVo (Johnson, Narain, Quatieri, Maes, Picard; MIT, 2023), CC BY 3.0 US. Recordings were labelled in the moment by parents and caregivers. Hum is a hint for caregivers. It does not diagnose, and the person who knows the communicator is always right.</p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
