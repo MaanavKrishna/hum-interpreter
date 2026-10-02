@@ -59,7 +59,8 @@ class ConvLogMel(nn.Module):
         x = F.conv1d(wav.unsqueeze(1), self.basis, stride=HOP)
         power = x[:, : self.n_bins] ** 2 + x[:, self.n_bins :] ** 2
         mel = F.conv1d(power, self.mel)
-        logmel = torch.log(mel + 1e-6)
+        # Clamp: batched CPU convolution can return tiny negatives for near-silent bands.
+        logmel = torch.log(mel.clamp_min(0.0) + 1e-6)
         if self.band_norm:
             # Ablation: subtract each mel band's mean over time to cancel a fixed
             # room/microphone filter. It did not help on held-out sessions.

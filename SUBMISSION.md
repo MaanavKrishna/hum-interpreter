@@ -37,6 +37,7 @@ caregiver.
 - Answers are prediction sets with a statistical coverage guarantee (conformal
   prediction), not forced single guesses.
 - A caregiver can start a brand-new voice from zero; it improves with each sound taught.
+- Hand-off file: a taught voice saves to a 4 KB file and loads on another device.
 - Voice map: one person's sounds laid out by similarity.
 - Communication passport: per-meaning examples, notes on what helps, and how far
   to trust the model.
@@ -87,8 +88,9 @@ Macro-F1, averaged over eight people:
   rather than hide it.
 - Random train/test splits leak the recording session and inflate scores. We
   rebuilt the evaluation around whole sessions.
-- Three pretrained speech models, a cross-session contrastive loss, and active
-  learning all failed to help. We report them.
+- Seven attempts to raise accuracy failed to help: three frozen pretrained
+  speech models, fine-tuning one of them, a cross-session contrastive loss, a
+  three-model ensemble, session context, and active learning. We report them all.
 
 ## What is next
 

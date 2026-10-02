@@ -282,6 +282,7 @@ def main():
         "curve": {"ks": ks, "f1": np.mean(curves, axis=0).round(4).tolist()},
         "active": {"ks": budgets, "random": actives[0].round(4).tolist(), "active": actives[1].round(4).tolist()},
         "lopoReady": bool(lopo),
+        "attempts": json.load(open(ROOT / "ml" / "attempts.json"))["rows"],
         "xsession": float(np.mean([r["f1"] for r in json.load(open(RUNS / "xsession.json")).values()])),
     }
     results["summaryNote"] = (

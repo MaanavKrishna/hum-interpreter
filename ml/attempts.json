@@ -1,0 +1,9 @@
+{
+  "note": "Later attempts to raise accuracy. Same session split, same prototype head, macro-F1 on test sessions. Where a choice was needed (epoch, window) it was made on calib sessions.",
+  "rows": [
+    {"idea": "DistilHuBERT fine-tuned end to end (finetune.py; run stopped at epoch 8 of 12, epoch 7 chosen on calib)", "f1": 0.377},
+    {"idea": "Ensemble of three Hum encoders with different seeds (train.py seed)", "f1": 0.381},
+    {"idea": "Adding the previous sounds in the session as context (window chosen on calib)", "f1": 0.377},
+    {"idea": "Hum and frozen Whisper-tiny combined", "f1": 0.394}
+  ]
+}

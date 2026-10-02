@@ -27,6 +27,9 @@ for t in c["table"]:
 lines += ["", "Few-shot teaching" + (" (encoder never heard the person)" if r["lopoReady"] else " (provisional)") + ", macro-F1 by examples per meaning:", "", "| " + " | ".join(str(k) for k in r["curve"]["ks"]) + " |", "|" + "---|" * len(r["curve"]["ks"]), "| " + " | ".join(f"{x:.2f}" for x in r["curve"]["f1"]) + " |"]
 lines += ["", "What did not help:", "", f"- Frozen pretrained speech encoders: best {max(s['f1'] for s in r['summary'] if 'layer' in s):.2f}.", f"- Cross-session contrastive positives with per-band normalisation: {r['xsession']:.2f}.", f"- Uncertainty-based active learning: {r['active']['active'][-1]:.2f} after {r['active']['ks'][-1]} labels, against {r['active']['random'][-1]:.2f} for random order."]
 
+lines += [f"- {a['idea']}: {a['f1']:.2f}." for a in r.get("attempts", [])]
+lines += ["", "The last four were attempts to beat the shipped model. None moved the score past 0.39, level with Hum within noise. The limit is the data (eight people, sessions that differ more than meanings do), not the model."]
+
 sig_path = ROOT / "runs" / "significance.json"
 if sig_path.exists():
     sig = json.load(open(sig_path))

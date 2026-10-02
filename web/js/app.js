@@ -67,16 +67,29 @@ function buildVoices() {
     examples: null,
     voice: new Voice({ id: p.id, name: `Voice ${p.id.slice(1)}`, sums: p.sums, counts: p.counts, temperature: p.temperature, qhat: p.qhat, coverage: bundle.coverage }),
   }));
-  for (const saved of readStore(STORE, [])) {
-    const entry = { person: null, examples: saved.examples, voice: new Voice({ id: saved.id, name: saved.name, temperature: bundle.defaultTemperature, coverage: bundle.coverage }) };
-    saved.examples.forEach((e) => entry.voice.teach(e.label, e.emb));
-    recalibrate(entry);
-    voices.push(entry);
-  }
+  for (const saved of readStore(STORE, [])) voices.push(customEntry(saved));
+}
+
+// A voice taught or imported in this browser. `base` holds prototypes that arrived
+// in a voice file; `examples` are sounds taught here, kept so the threshold can be refit.
+function customEntry({ id, name, examples = [], base = null }) {
+  const voice = new Voice({
+    id,
+    name,
+    sums: base?.sums ?? {},
+    counts: base?.counts ?? {},
+    temperature: base?.temperature ?? bundle.defaultTemperature,
+    qhat: base?.qhat ?? null,
+    coverage: bundle.coverage,
+  });
+  examples.forEach((e) => voice.teach(e.label, e.emb));
+  const entry = { person: null, examples, base, voice };
+  if (!base) recalibrate(entry);
+  return entry;
 }
 
 function saveCustom() {
-  writeStore(STORE, voices.filter((v) => !v.person).map((v) => ({ id: v.voice.id, name: v.voice.name, examples: v.examples })));
+  writeStore(STORE, voices.filter((v) => !v.person).map((v) => ({ id: v.voice.id, name: v.voice.name, examples: v.examples, base: v.base })));
 }
 
 function fillVoicePicker() {
@@ -103,7 +116,7 @@ function selectVoice(id) {
       $('voice').value = current.voice.id;
       return;
     }
-    const entry = { person: null, examples: [], voice: new Voice({ id: `custom-${Date.now()}`, name, temperature: bundle.defaultTemperature, coverage: bundle.coverage }) };
+    const entry = customEntry({ id: `custom-${Date.now()}`, name });
     voices.push(entry);
     saveCustom();
     current = entry;
@@ -218,7 +231,7 @@ function teach(label) {
   current.voice.teach(label, lastEmb);
   if (!current.person) {
     current.examples.push({ label, emb: Array.from(lastEmb, (x) => +x.toFixed(4)) });
-    recalibrate(current);
+    if (!current.base) recalibrate(current);
     saveCustom();
   }
   const n = current.voice.counts[label];
@@ -372,6 +385,57 @@ function renderPassport() {
   }
 }
 
+// ---------- voice files: how a parent hands a voice to another device ----------
+function voiceNotes(id) {
+  const all = readStore(NOTES, {});
+  return Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith(`${id}|`)).map(([k, v]) => [k.slice(id.length + 1), v]));
+}
+
+function exportVoice() {
+  const v = current.voice;
+  const file = {
+    format: 'hum-voice',
+    version: 1,
+    name: v.name,
+    sums: Object.fromEntries(Object.entries(v.sums).map(([k, a]) => [k, a.map((x) => +x.toFixed(4))])),
+    counts: v.counts,
+    temperature: v.temperature,
+    qhat: v.qhat,
+    notes: voiceNotes(v.id),
+  };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(file)], { type: 'application/json' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: `${v.name.replace(/[^\w-]+/g, '-').toLowerCase()}.hum.json` });
+  a.click();
+  URL.revokeObjectURL(url);
+  $('voice-file-status').textContent = `Saved ${a.download}. It holds numbers that describe the sounds, not recordings.`;
+}
+
+async function importVoice(file) {
+  const status = $('voice-file-status');
+  let data;
+  try {
+    data = JSON.parse(await file.text());
+  } catch {
+    data = null;
+  }
+  const dim = bundle.people[0] ? Object.values(bundle.people[0].sums)[0].length : 0;
+  const ok = data?.format === 'hum-voice' && data.sums && data.counts && Object.values(data.sums).every((a) => Array.isArray(a) && a.length === dim && a.every(Number.isFinite));
+  if (!ok) {
+    status.textContent = 'That is not a Hum voice file, or it was made with a different version of the model.';
+    return;
+  }
+  const id = `custom-${Date.now()}`;
+  const name = String(data.name || 'Imported voice').slice(0, 40);
+  const entry = customEntry({ id, name, base: { sums: data.sums, counts: data.counts, temperature: data.temperature, qhat: data.qhat } });
+  voices.push(entry);
+  const notes = readStore(NOTES, {});
+  for (const [label, text] of Object.entries(data.notes ?? {})) notes[`${id}|${label}`] = String(text).slice(0, 2000);
+  writeStore(NOTES, notes);
+  saveCustom();
+  selectVoice(id);
+  $('voice-file-status').textContent = `Loaded ${name} with ${entry.voice.labels.length} meanings. It is ready on the Listen tab.`;
+}
+
 // ---------- evidence ----------
 function hbar(name, value, cls = '') {
   return `<div class="hbar ${cls}"><span>${name}</span><span class="hbar-track"><span class="hbar-fill" style="display:block;width:${(value * 100).toFixed(1)}%"></span></span><span class="hbar-val">${value.toFixed(2)}</span></div>`;
@@ -410,11 +474,12 @@ function renderEvidence() {
     </div>
     <div class="ev-block">
       <h2>What did not help</h2>
-      <p>Reported because the next team should not repeat it.</p>
+      <p>Reported because the next team should not repeat it. Nothing moved the score past 0.39. The limit is the data, eight people whose recording sessions differ more than their meanings do, not the model.</p>
       <table class="ev"><thead><tr><th>Idea</th><th>Macro-F1</th></tr></thead><tbody>
       <tr><td>Large pretrained speech models, frozen (best of three)</td><td>${Math.max(...r.summary.filter((s) => s.layer !== undefined).map((s) => s.f1)).toFixed(2)}</td></tr>
       <tr><td>Contrastive loss with cross-session positives and per-band normalisation</td><td>${r.xsession.toFixed(2)}</td></tr>
       <tr><td>Asking about the least certain sounds, after ${r.active.ks.at(-1)} labels (random order: ${r.active.random.at(-1).toFixed(2)})</td><td>${r.active.active.at(-1).toFixed(2)}</td></tr>
+      ${(r.attempts ?? []).map((a) => `<tr><td>${a.idea.replace(/ \(.*?\)/g, '')}</td><td>${a.f1.toFixed(2)}</td></tr>`).join('')}
       <tr><td>Hum as shipped</td><td>${r.summary.find((s) => s.name === 'Hum').f1.toFixed(2)}</td></tr></tbody></table>
     </div>`;
 }
@@ -455,6 +520,11 @@ async function main() {
     e.target.value = '';
   });
   $('print').addEventListener('click', () => window.print());
+  $('export-voice').addEventListener('click', exportVoice);
+  $('import-voice').addEventListener('change', (e) => {
+    if (e.target.files[0]) importVoice(e.target.files[0]);
+    e.target.value = '';
+  });
   $('new-meaning').addEventListener('submit', (e) => {
     e.preventDefault();
     teach($('new-meaning-input').value);

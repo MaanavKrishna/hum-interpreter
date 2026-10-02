@@ -83,6 +83,15 @@
         </div>
         <button id="print" class="plain-btn">Print passport</button>
       </div>
+      <div class="handoff">
+        <h2 class="quiet-h">Hand this voice to another device</h2>
+        <p class="hint">Save the voice as a small file and send it to the new caregiver. They open Hum, load the file, and it understands this person straight away. The file holds numbers that describe the sounds, not recordings.</p>
+        <div class="handoff-row">
+          <button id="export-voice" class="plain-btn">Save voice to a file</button>
+          <label class="plain-btn file-btn">Load a voice file<input id="import-voice" type="file" accept=".json,application/json"></label>
+        </div>
+        <p class="hint" id="voice-file-status" aria-live="polite"></p>
+      </div>
       <div id="passport-body" class="passport-body"></div>
     </section>
 

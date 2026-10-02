@@ -2,6 +2,7 @@
 
   python train.py shipped 40     # all 8 people, train sessions only -> runs/shipped.pt
   python train.py lopo 15        # 8 encoders, each never hears one person -> runs/lopo.json
+  python train.py seed 40 11     # extra ensemble member -> runs/seed_11.pt
   python train.py xsession 24    # ablation: cross-session contrastive + per-band norm
 
 Loss: cross-entropy over (person, meaning) classes + supervised contrastive.
@@ -89,12 +90,12 @@ def score_person(model, clips, g):
     return {"acc": float(accuracy_score(te.label, pred)), "f1": float(f1_score(te.label, pred, average="macro")), "n_test": len(te)}
 
 
-def train_encoder(clips, rows, epochs=40, bs=64, lr=2e-3, tag="", cross_session=False):
+def train_encoder(clips, rows, epochs=40, bs=64, lr=2e-3, tag="", cross_session=False, seed=SEED):
     """cross_session=True is the ablation: batches draw each meaning from several
     sessions, positives are cross-session only, and the front end normalises per band."""
-    torch.manual_seed(SEED)
-    np.random.seed(SEED)
-    rng = np.random.default_rng(SEED)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    rng = np.random.default_rng(seed)
     key = (rows.person + "|" + rows.label).values
     classes = sorted(set(key))
     cid = {c: i for i, c in enumerate(classes)}
@@ -142,10 +143,17 @@ def train_encoder(clips, rows, epochs=40, bs=64, lr=2e-3, tag="", cross_session=
     return model
 
 
-def main(mode, epochs):
+def main(mode, epochs, seed=SEED):
     clips = Clips()
     meta = fixed_split(clips.usable())
     RUNS.mkdir(exist_ok=True)
+    if mode == "seed":  # extra ensemble member: same recipe, different initialisation and batches
+        model = train_encoder(clips, meta[meta.split == "train"], epochs, tag=f"seed-{seed}", seed=seed)
+        res = {p: score_person(model, clips, g) for p, g in meta.groupby("person")}
+        torch.save(model.state_dict(), RUNS / f"seed_{seed}.pt")
+        print(f"seed {seed} mean F1", round(np.mean([r["f1"] for r in res.values()]), 3))
+        json.dump(res, open(RUNS / f"seed_{seed}.json", "w"), indent=1)
+        return
     if mode in ("shipped", "xsession"):
         model = train_encoder(clips, meta[meta.split == "train"], epochs, tag=mode, cross_session=mode == "xsession")
         res = {p: score_person(model, clips, g) for p, g in meta.groupby("person")}
@@ -165,4 +173,4 @@ def main(mode, epochs):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 40)
+    main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 40, int(sys.argv[3]) if len(sys.argv) > 3 else SEED)

@@ -23,6 +23,7 @@ Built for the ML Empowerment Build Challenge 3.0.
 | **Teach** | One tap on the right meaning updates that person's model on the spot. No server, no retraining. |
 | **Start a new voice** | Teach Hum any voice from zero, including your own. Three examples per meaning are enough to try it; accuracy keeps improving with more. |
 | **Voice map** | Every sound of one person, laid out by similarity and coloured by meaning. |
+| **Hand-off file** | Save a taught voice as a 4 KB file and load it on another device, so the parent teaches once and the sitter's phone understands. The file holds embeddings, not audio. |
 | **Passport** | A printable page for a new caregiver: each meaning, example sounds, what helps, and how far to trust Hum on it. |
 | **How well it works** | The full evaluation, including the parts that are unflattering. |
 
@@ -101,6 +102,12 @@ What did not help:
 - Frozen pretrained speech encoders: best 0.34.
 - Cross-session contrastive positives with per-band normalisation: 0.33.
 - Uncertainty-based active learning: 0.30 after 80 labels, against 0.32 for random order.
+- DistilHuBERT fine-tuned end to end (finetune.py; run stopped at epoch 8 of 12, epoch 7 chosen on calib): 0.38.
+- Ensemble of three Hum encoders with different seeds (train.py seed): 0.38.
+- Adding the previous sounds in the session as context (window chosen on calib): 0.38.
+- Hum and frozen Whisper-tiny combined: 0.39.
+
+The last four were attempts to beat the shipped model. None moved the score past 0.39, level with Hum within noise. The limit is the data (eight people, sessions that differ more than meanings do), not the model.
 
 Paired bootstrap over test clips (2,000 draws). Hum macro-F1 0.38, 95% interval 0.35 to 0.40. Gap to each comparison:
 
@@ -156,7 +163,9 @@ ml/data.py        ReCANVo loading, 16 kHz cache, session ids
 ml/splits.py      session-aware train / calib / test splits
 ml/baselines.py   majority and MFCC baselines, plus the leakage demonstration
 ml/probe.py       frozen wav2vec 2.0, DistilHuBERT, Whisper-tiny comparison
-ml/train.py       encoder training; leave-one-person-out; cross-session ablation
+ml/train.py       encoder training; leave-one-person-out; cross-session ablation; extra seeds
+ml/finetune.py    end-to-end fine-tuning of DistilHuBERT or Whisper-tiny (did not help)
+ml/attempts.json  scores of later attempts to raise accuracy
 ml/evaluate.py    scoring, calibration, conformal sets, ONNX export, app bundle
 ml/significance.py  paired bootstrap of Hum against each comparison model
 ml/report.py      writes the results section of this file
