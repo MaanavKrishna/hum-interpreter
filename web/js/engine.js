@@ -26,6 +26,16 @@ export function fitLength(wav, n = CLIP_SAMPLES) {
   return out;
 }
 
+// Second model: what kind of sound it is (laugh, cry, cough...). Independent of any voice.
+let typeSession = null;
+
+export async function soundType(wav, types) {
+  if (!typeSession) typeSession = await ort.InferenceSession.create('model/types.onnx', { executionProviders: ['wasm'] });
+  const input = new ort.Tensor('float32', fitLength(wav), [1, CLIP_SAMPLES]);
+  const p = (await typeSession.run({ wav: input })).probs.data;
+  return types.map((t, i) => ({ type: t, p: p[i] })).sort((a, b) => b.p - a.p);
+}
+
 export async function embed(wav) {
   const s = await loadModel();
   const input = new ort.Tensor('float32', fitLength(wav), [1, CLIP_SAMPLES]);

@@ -153,6 +153,11 @@ main { flex: 1; padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 4vw, 3rem); max-wi
 .samples button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
 .answer { min-height: 11rem; }
+.sound-type { display: inline-block; margin: 0 0 0.9rem; padding: 0.3rem 0.8rem; border-radius: 999px; background: var(--ink); color: var(--paper); font-size: 0.95rem; }
+.sound-type.unclear { background: var(--line); color: var(--ink); }
+.pattern { margin: 0.9rem 0 0; max-width: 46ch; }
+#today-wrap { margin-top: 1.4rem; max-width: 520px; }
+.today { margin: 0.2rem 0 0.6rem; }
 
 .answer-main {
   font-family: var(--display);

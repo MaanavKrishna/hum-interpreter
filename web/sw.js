@@ -1,7 +1,7 @@
 // Offline support. After one visit, Hum works with no connection at all:
 // the model, the app, and the sample recordings are served from this cache.
-const CACHE = 'hum-v3';
-const SHELL = ['./', 'index.html', 'styles.css', 'favicon.svg', 'js/app.js', 'js/engine.js', 'js/audio.js', 'data/bundle.json', 'model/hum.onnx', 'manifest.webmanifest'];
+const CACHE = 'hum-v4';
+const SHELL = ['./', 'index.html', 'styles.css', 'favicon.svg', 'js/app.js', 'js/engine.js', 'js/audio.js', 'data/bundle.json', 'model/hum.onnx', 'model/types.onnx', 'manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(

@@ -20,6 +20,9 @@ Built for the ML Empowerment Build Challenge 3.0.
 
 | | |
 |---|---|
+| **What kind of sound** | A second model names the sound itself: laugh, cry, scream, cough, sneeze, sniff, sigh, throat clearing, yawn, breathing, or other voice. 90% accurate on 4,703 held-out clips. This is the part that is not guesswork. |
+| **Patterns** | "Past cries from Voice 16 meant frustrated 45 of 84 times." Learned from caregiver labels, shown with every answer and in the passport. |
+| **Daily log** | While listening, Hum counts sounds by type (for example 3 coughs, 2 cries today) and saves the log as a spreadsheet for a doctor or therapist. |
 | **Listen** | Tap, let the person vocalize, tap again. Hum answers with the likely meaning. |
 | **Honest answers** | Hum returns a *set* of meanings sized by conformal prediction. One meaning when it is sure, two when torn, "maybe" when it is not. It does not bluff. |
 | **Keep listening** | Hands-free mode: Hum picks out each sound on its own and keeps a strip of what it just heard. |
@@ -60,6 +63,32 @@ Then open http://localhost:8765. No build step. The trained model
    re-derived by leave-one-out over the taught examples.
 
 ## Results
+
+### What kind of sound (objective layer)
+
+Trained on VocalSound, Nonspeech7k and EmoGator; tested on 4,703 clips from
+people and recordings held out by the datasets' authors (`soundtypes.py`).
+
+| Sound | Named correctly |
+|---|---|
+| laugh | 95% |
+| sniff | 93% |
+| sigh | 92% |
+| sneeze | 92% |
+| other voice | 92% |
+| cough | 91% |
+| scream | 90% |
+| throat clearing | 85% |
+| breathing | 82% |
+| cry | 78% |
+| yawn | 54% |
+
+Accuracy 90.3%, macro-F1 0.87. On VocalSound's own test set: 91.4%, against the
+authors' published baseline of 90.6% with a larger model. The ReCANVo voices have
+no sound-type labels, so on them this layer is unmeasured. Adding the sound type
+to the meaning hint raised five-fold macro-F1 from 0.34 to 0.35 and made no voice worse.
+
+### What it means (personal layer)
 
 <!-- results:start -->
 Scored on 2244 vocalizations from recording sessions held out per person. Macro-F1, mean over eight people.
@@ -206,6 +235,8 @@ ml/evaluate.py    scoring, calibration, conformal sets, ONNX export, app bundle
 ml/significance.py  paired bootstrap of Hum against each comparison model
 ml/report.py      writes the results section of this file
 ml/emogator.py    pretraining on the EmoGator vocal-burst corpus
+ml/soundtypes.py  the sound-type model: data, training, held-out test
+ml/export_types.py  ONNX export, sound-type patterns per voice, fusion check
 ml/crossval.py    five-fold session-grouped cross-validation, incl. replay of the alert rule
 ml/prosody.py     pitch, timing and loudness-dynamics features (did not help)
 ml/context.py     time-of-day and vocal-rhythm features (did not help)
@@ -227,6 +258,8 @@ cd data && unzip -q ReCANVo.zip && cd ../ml
 ../.venv/bin/python train.py lopo 15
 ../.venv/bin/python emogator.py cache && ../.venv/bin/python emogator.py pretrain 15   # needs data/EmoGator
 ../.venv/bin/python crossval.py 30 && ../.venv/bin/python crossval.py score
+../.venv/bin/python soundtypes.py cache && ../.venv/bin/python soundtypes.py train 20   # needs data/vocalsound, data/nonspeech7k
+../.venv/bin/python export_types.py
 ../.venv/bin/python evaluate.py && ../.venv/bin/python significance.py && ../.venv/bin/python report.py
 ```
 
@@ -239,6 +272,9 @@ leave-one-person-out on an Apple M1 Pro.
   "ReCANVo: A database of real-world communicative and affective nonverbal
   vocalizations." *Scientific Data* 10, 523 (2023).
   Data: https://doi.org/10.5281/zenodo.5786859, CC BY 3.0 US.
+- **VocalSound**: Gong, Yu, Glass (2022), CC BY-SA 4.0. **Nonspeech7k**: Rashid et al.
+  (2023), CC BY 4.0. **EmoGator**: Buhl (2023), Apache-2.0. The sound-type model
+  (`web/model/types.onnx`) is trained on these and inherits VocalSound's share-alike terms.
 - The idea of personalised models built from caregivers' live labels comes from
   the MIT Media Lab **Commalla** project. Hum is an independent student project
   and is not affiliated with it.

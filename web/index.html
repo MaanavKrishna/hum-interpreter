@@ -51,11 +51,17 @@
         <div class="answer-col" aria-live="polite">
           <div id="alert" class="alert" role="alert" hidden></div>
           <div id="answer" class="answer">
+            <p class="sound-type" id="sound-type" hidden></p>
             <p class="answer-main" id="answer-main">Every sound means something.</p>
             <p class="answer-sub" id="answer-sub">Hum learns one person's sounds from the people who know them best, then helps everyone else understand. Pick a voice, then listen.</p>
           </div>
           <div id="bars" class="bars" hidden></div>
           <p id="truth" class="truth" hidden></p>
+          <div id="today-wrap" hidden>
+            <h2 class="quiet-h">Today</h2>
+            <p id="today" class="today"></p>
+            <button id="export-log" class="plain-btn">Save today's log</button>
+          </div>
           <div id="recent-wrap" hidden>
             <h2 class="quiet-h">Sounds just heard</h2>
             <ol id="recent" class="recent"></ol>

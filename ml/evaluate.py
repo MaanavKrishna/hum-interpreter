@@ -313,6 +313,9 @@ def main():
         "people": people,
         "results": results,
     }
+    if (RUNS / "types_bundle.json").exists():
+        from export_types import merge_into
+        merge_into(bundle, json.load(open(RUNS / "types_bundle.json")))
     (WEB / "data").mkdir(exist_ok=True)
     json.dump(bundle, open(WEB / "data" / "bundle.json", "w"), separators=(",", ":"))
     export_onnx(model)

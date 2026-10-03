@@ -1,4 +1,4 @@
-import { Voice, embed, loadModel } from './engine.js';
+import { Voice, embed, loadModel, soundType } from './engine.js';
 import { LiveListener, Recorder, loadClip, loadFile, play } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
@@ -6,6 +6,8 @@ const SPARE_COLOURS = ['#0f8b8d', '#b5651d', '#6a4c93', '#3d7a2a', '#c2185b', '#
 const STORE = 'hum.voices.v1';
 const NOTES = 'hum.notes.v1';
 const ALERTS = 'hum.alerts.v1';
+const PATTERNS = 'hum.patterns.v1'; // voice -> sound type -> meaning -> count, from what caregivers taught
+const LOG = 'hum.log.v1'; // day -> sound type -> count, for sounds heard while listening
 // Meanings that raise the alert unless the caregiver says otherwise.
 const UPSET = new Set(['frustrated', 'dysregulated', 'protest', 'dysregulation-sick', 'dysregulation-bathroom', 'pain', 'scared', 'upset', 'distress']);
 const ALERT_WINDOW = 45; // seconds of recent sounds the alert looks at
@@ -15,6 +17,7 @@ let bundle;
 let voices = []; // { voice: Voice, person: bundle person or null, examples: [] for custom }
 let current;
 let lastEmb = null;
+let lastType = null;
 let recorder = null;
 let live = null;
 let recent = []; // { at, label, sure, upset } for sounds heard while listening continuously
@@ -142,6 +145,7 @@ function selectVoice(id) {
 
 // ---------- listen ----------
 function renderIdle() {
+  renderType(null);
   $('bars').hidden = true;
   $('truth').hidden = true;
   $('teach').hidden = true;
@@ -174,6 +178,7 @@ function renderSamples() {
 }
 
 function renderAnswer(result, truth) {
+  document.querySelectorAll('.pattern').forEach((p) => p.remove());
   const names = result.set.map((r) => meaning(r.label).title);
   const main = $('answer-main');
   const sub = $('answer-sub');
@@ -238,6 +243,7 @@ function teach(label) {
   label = label.trim().toLowerCase();
   if (!label) return;
   current.voice.teach(label, lastEmb);
+  if (lastType) rememberPattern(lastType, label);
   if (!current.person) {
     current.examples.push({ label, emb: Array.from(lastEmb, (x) => +x.toFixed(4)) });
     if (!current.base) recalibrate(current);
@@ -248,6 +254,83 @@ function teach(label) {
   $('teach-hint').textContent = `Taught. Hum now has ${n} ${n === 1 ? 'example' : 'examples'} of ${meaning(label).title.toLowerCase()} for ${current.voice.name}.${current.person ? ' Changes to recorded voices last until you reload.' : ''}`;
   fillVoicePicker();
   renderPassport();
+}
+
+// ---------- sound type: the objective layer ----------
+const PLURAL = { cry: 'cries', laugh: 'laughs', 'other voice': 'other voice sounds', breathing: 'breathing sounds', 'throat clearing': 'throat clearings' };
+const plural = (t, n = 2) => (n === 1 ? t : PLURAL[t] ?? `${t}s`);
+const named = (t) => (t === 'other voice' ? 'another voice sound' : t === 'breathing' ? 'breathing' : `${/^[aeiou]/.test(t) ? 'an' : 'a'} ${t}`);
+
+function renderType(ranked) {
+  const el = $('sound-type');
+  if (!ranked) {
+    el.hidden = true;
+    return;
+  }
+  const top = ranked[0];
+  el.hidden = false;
+  const reliable = bundle.types.recall[top.type];
+  el.classList.toggle('unclear', top.p < 0.5);
+  el.textContent =
+    top.p < 0.5
+      ? `Sound type unclear: ${top.type} or ${ranked[1].type}`
+      : `Sound: ${named(top.type)}, ${Math.round(top.p * 100)}% sure${reliable ? `. In testing Hum named ${plural(top.type)} right ${Math.round(reliable * 100)}% of the time` : ''}`;
+}
+
+// Per-voice patterns: what this sound type has meant for this person before.
+function patternsFor(voiceId) {
+  const saved = readStore(PATTERNS, {})[voiceId] ?? {};
+  const base = current.person?.patterns ?? {};
+  const out = {};
+  for (const src of [base, saved])
+    for (const [type, labels] of Object.entries(src))
+      for (const [label, n] of Object.entries(labels)) {
+        out[type] ??= {};
+        out[type][label] = (out[type][label] ?? 0) + n;
+      }
+  return out;
+}
+
+function patternLine(type) {
+  const row = patternsFor(current.voice.id)[type];
+  if (!row) return '';
+  const total = Object.values(row).reduce((a, b) => a + b, 0);
+  if (total < 3) return '';
+  const [label, n] = Object.entries(row).sort((a, b) => b[1] - a[1])[0];
+  return `Past ${plural(type)} from ${current.voice.name} meant ${meaning(label).title.toLowerCase()} ${n} of ${total} times.`;
+}
+
+function rememberPattern(type, label) {
+  const all = readStore(PATTERNS, {});
+  const v = (all[current.voice.id] ??= {});
+  v[type] ??= {};
+  v[type][label] = (v[type][label] ?? 0) + 1;
+  writeStore(PATTERNS, all);
+}
+
+function logSound(type) {
+  const day = new Date().toISOString().slice(0, 10);
+  const all = readStore(LOG, {});
+  all[day] ??= {};
+  all[day][type] = (all[day][type] ?? 0) + 1;
+  writeStore(LOG, all);
+  renderToday();
+}
+
+function renderToday() {
+  const day = new Date().toISOString().slice(0, 10);
+  const counts = readStore(LOG, {})[day] ?? {};
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  $('today-wrap').hidden = entries.length === 0;
+  $('today').textContent = entries.map(([t, n]) => `${n} ${plural(t, n)}`).join(', ');
+}
+
+function exportLog() {
+  const rows = [['date', 'sound type', 'count']];
+  for (const [day, counts] of Object.entries(readStore(LOG, {}))) for (const [t, n] of Object.entries(counts)) rows.push([day, t, n]);
+  const url = URL.createObjectURL(new Blob([rows.map((r) => r.join(',')).join('\n')], { type: 'text/csv' }));
+  Object.assign(document.createElement('a'), { href: url, download: 'hum-sound-log.csv' }).click();
+  URL.revokeObjectURL(url);
 }
 
 // ---------- alert: several upset sounds close together ----------
@@ -266,7 +349,7 @@ function renderRecent() {
   recent = recent.filter((r) => now - r.at <= 300).slice(-12);
   $('recent-wrap').hidden = recent.length === 0;
   $('recent').innerHTML = recent
-    .map((r) => `<li class="${r.sure ? '' : 'unsure'}">${dot(r.label)}${esc(meaning(r.label).title)}${r.sure ? '' : '?'}</li>`)
+    .map((r) => `<li class="${r.sure ? '' : 'unsure'}">${dot(r.label)}${r.type ? `${esc(r.type)}: ` : ''}${esc(meaning(r.label).title.toLowerCase())}${r.sure ? '' : '?'}</li>`)
     .join('');
   const win = recent.filter((r) => now - r.at <= ALERT_WINDOW);
   const weights = win.map((r) => Math.exp(-(now - r.at) / ALERT_DECAY));
@@ -288,11 +371,16 @@ async function hear(wav, { playIt = false, truth = null, track = false } = {}) {
   ear.disabled = true;
   try {
     if (playIt) play(wav);
-    lastEmb = await embed(wav);
+    const [emb, types] = await Promise.all([embed(wav), soundType(wav, bundle.types.names).catch(() => null)]);
+    lastEmb = emb;
+    lastType = types && types[0].p >= 0.5 ? types[0].type : null;
     const result = current.voice.interpret(lastEmb);
     renderAnswer(result, truth);
+    renderType(types);
+    if (lastType && patternLine(lastType)) $('answer-sub').insertAdjacentHTML('afterend', `<p class="pattern answer-sub">${esc(patternLine(lastType))}</p>`);
+    if (track && lastType) logSound(lastType);
     if (track && result.ranked.length) {
-      recent.push({ at: Date.now() / 1000, label: result.ranked[0].label, sure: result.set.length === 1, upset: upsetProbability(result) });
+      recent.push({ at: Date.now() / 1000, label: result.ranked[0].label, type: lastType, sure: result.set.length === 1, upset: upsetProbability(result) });
       renderRecent();
     }
     if (window.matchMedia('(max-width: 760px)').matches) $('answer').scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -447,8 +535,12 @@ function renderPassport() {
       rel += tenth >= 7 ? ` Hum recognises this about ${tenth} times in 10.` : tenth >= 4 ? ` Hum recognises this about ${tenth} times in 10, so check the context.` : ` Hum often misses this one. Trust your own read.`;
     }
     const key = `${v.id}|${label}`;
+    const pats = patternsFor(v.id);
+    const byType = Object.entries(pats).map(([t, ls]) => [t, ls[label] ?? 0]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+    const typed = byType.reduce((s, [, n]) => s + n, 0);
+    const usual = typed >= 3 ? ` Usually sounds like: ${byType.slice(0, 2).map(([t, n]) => `${t} (${n} of ${typed})`).join(', ')}.` : '';
     row.innerHTML = `
-      <div><div class="meaning-name">${dot(label)}${esc(m.title)}</div><p class="hint">${esc(m.plain)}</p></div>
+      <div><div class="meaning-name">${dot(label)}${esc(m.title)}</div><p class="hint">${esc(m.plain)}${esc(usual)}</p></div>
       <div><label class="hint" for="n-${esc(key)}">What helps</label><textarea id="n-${esc(key)}" placeholder="For example: offer the picture board, then wait.">${esc(notes[key] || '')}</textarea></div>
       <div><div class="play-row samples"></div><p class="reliability">${rel}</p><label class="alert-toggle"><input type="checkbox" ${alertsOn(label) ? 'checked' : ''}> Alert me when several sounds in a row mean this</label></div>`;
     row.querySelector('.alert-toggle input').addEventListener('change', (e) => {
@@ -536,6 +628,25 @@ function hbar(name, value, cls = '') {
   return `<div class="hbar ${cls}"><span>${name}</span><span class="hbar-track"><span class="hbar-fill" style="display:block;width:${(value * 100).toFixed(1)}%"></span></span><span class="hbar-val">${value.toFixed(2)}</span></div>`;
 }
 
+function typesBlock(t) {
+  if (!t) return '';
+  const pct = (x) => `${Math.round(x * 100)}%`;
+  const rows = t.names
+    .filter((n) => t.recall[n] != null)
+    .map((n) => `<tr><td>${esc(n)}</td><td>${pct(t.recall[n])}</td></tr>`)
+    .join('');
+  const fused = t.fusion ? ` Adding the sound type to the meaning hint moved five-fold macro-F1 from ${t.fusion.hum.toFixed(2)} to ${t.fusion['hum+type'].toFixed(2)}.` : '';
+  return `
+    <div class="ev-block">
+      <h2>What kind of sound: the part that is not guesswork</h2>
+      <p>Meaning depends on context a microphone cannot hear. The kind of sound does not: a laugh is a laugh. Hum's second model names ${t.names.length} kinds of sound, trained on VocalSound, Nonspeech7k and EmoGator and tested on ${t.n_test.toLocaleString()} clips from people and recordings it never heard.</p>
+      ${hbar('Accuracy', t.acc, 'ours')}
+      ${hbar('Macro-F1', t.f1, 'ours')}
+      <table class="ev" style="margin-top:.8rem"><thead><tr><th>Sound</th><th>Named correctly</th></tr></thead><tbody>${rows}</tbody></table>
+      <p style="margin-top:.8rem">This model was tested on adults and children in everyday recordings, not on the eight ReCANVo voices, whose sounds have no type labels. Treat its answers for those voices as a good guess, not a measured fact.${fused}</p>
+    </div>`;
+}
+
 function cvBlock(cv) {
   if (!cv) return '';
   const pct = (x) => (x == null ? 'n/a' : `${Math.round(x * 100)}%`);
@@ -576,6 +687,7 @@ function renderEvidence() {
       <p>People differ a lot. Hum is a hint, and for some voices a weak one.</p>
       <table class="ev"><thead><tr><th>Voice</th><th>Meanings</th><th>Test sounds</th><th>Always guess commonest</th><th>MFCC baseline</th><th>Hum</th><th>Hum, never heard this person</th></tr></thead><tbody>${rows}</tbody></table>
     </div>
+    ${typesBlock(bundle.types)}
     ${cvBlock(r.cv)}
     <div class="ev-block">
       <h2>Saying "not sure" when it should</h2>
@@ -627,6 +739,8 @@ async function main() {
   $('voice').addEventListener('change', (e) => selectVoice(e.target.value));
   $('ear').addEventListener('click', toggleEar);
   $('live').addEventListener('click', toggleLive);
+  $('export-log').addEventListener('click', exportLog);
+  renderToday();
   $('file').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
