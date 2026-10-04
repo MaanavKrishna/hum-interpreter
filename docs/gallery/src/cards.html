@@ -1,0 +1,60 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; }
+  body { width: 1500px; height: 1000px; background: #edf0f5; color: #171a33; font-family: "Atkinson Hyperlegible", sans-serif; overflow: hidden; }
+  .card { display: none; padding: 100px 110px; box-sizing: border-box; height: 1000px; position: relative; }
+  .card:target { display: block; }
+  .mark { font-family: "Bricolage Grotesque"; font-weight: 800; font-size: 44px; letter-spacing: -1.5px; position: absolute; right: 110px; top: 90px; }
+  h1 { font-family: "Bricolage Grotesque"; font-weight: 800; font-size: 76px; line-height: 1; letter-spacing: -2.5px; margin: 0 0 40px; max-width: 1050px; }
+  p { font-size: 32px; line-height: 1.45; max-width: 1050px; margin: 0 0 22px; color: #3a4060; }
+  .layers { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 20px; }
+  .layer { background: #fff; border-radius: 22px; padding: 40px 44px; }
+  .layer.dark { background: #171a33; color: #fff; }
+  .layer h2 { font-family: "Bricolage Grotesque"; font-size: 42px; margin: 0 0 10px; letter-spacing: -1px; }
+  .layer .q { font-size: 26px; opacity: .75; margin-bottom: 26px; }
+  .layer ul { margin: 0; padding-left: 28px; font-size: 27px; line-height: 1.55; }
+  .flow { font-size: 26px; color: #586080; margin-top: 34px; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px 60px; margin-top: 10px; }
+  .stat b { display: block; font-family: "Bricolage Grotesque"; font-size: 96px; line-height: 1; letter-spacing: -3px; color: #4b3fd1; }
+  .stat span { font-size: 27px; line-height: 1.4; color: #3a4060; display: block; margin-top: 10px; max-width: 560px; }
+  .phones { display: flex; gap: 46px; justify-content: center; align-items: flex-start; margin-top: 10px; }
+  .phone { width: 300px; height: 650px; border-radius: 44px; background: #171a33; padding: 14px; box-sizing: border-box; }
+  .phone img { width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 32px; display: block; }
+</style></head>
+<body>
+<section class="card" id="problem">
+  <div class="mark">hum</div>
+  <h1>Some people communicate with sounds, not words.</h1>
+  <p>Many autistic people, and people with cerebral palsy or some genetic conditions, are minimally speaking. Their families learn what each sound means.</p>
+  <p>A new teacher, a substitute nurse, or a babysitter starts from nothing. Requests go unanswered. Distress gets read as misbehaviour.</p>
+  <p><b style="color:#171a33">Hum carries the family's knowledge to everyone else, on a phone, with no audio ever uploaded.</b></p>
+</section>
+<section class="card" id="layers">
+  <div class="mark">hum</div>
+  <h1>Two layers: one measured, one honest.</h1>
+  <div class="layers">
+    <div class="layer dark"><h2>What kind of sound</h2><div class="q">Objective. Same for everyone.</div>
+      <ul><li>11 types: laugh, cry, scream, cough, sneeze, sniff, sigh, throat clearing, yawn, breathing, other voice</li><li>90.3% correct on 4,703 clips from people it never heard</li><li>Body sounds are named, never interpreted</li></ul></div>
+    <div class="layer"><h2>What it means</h2><div class="q">Personal. Learned from the family.</div>
+      <ul><li>Prototype per meaning, updated with one tap</li><li>Answers as a set sized by conformal prediction: one meaning when sure, two when torn</li><li>Upset alert from several sounds in a row</li></ul></div>
+  </div>
+  <p class="flow">Raw audio, 16 kHz, into two small CNNs (5.7 MB each) running in the browser with ONNX. No server.</p>
+</section>
+<section class="card" id="results">
+  <div class="mark">hum</div>
+  <h1>Measured, not claimed.</h1>
+  <div class="stats">
+    <div class="stat"><b>90.3%</b><span>sound type correct on held-out people and recordings (91.4% on VocalSound, above the published 90.6%)</span></div>
+    <div class="stat"><b>0.34</b><span>meaning macro-F1, five-fold with sessions kept apart, against 0.13 for always guessing the commonest meaning</span></div>
+    <div class="stat"><b>7 in 10</b><span>upset sounds caught by the alert for 3 of 8 voices, with under 5% false alarms. The app says when it is not dependable.</span></div>
+    <div class="stat"><b>11</b><span>other ideas tested and reported, including four pretrained models. None beat the shipped one beyond noise.</span></div>
+  </div>
+</section>
+<section class="card" id="phones">
+  <div class="mark">hum</div>
+  <h1 style="font-size:60px;margin-bottom:34px">On any phone. Works offline after one visit.</h1>
+  <div class="phones"><div class="phone"><img src="m1.png"></div><div class="phone"><img src="m2.png"></div><div class="phone"><img src="m3.png"></div></div>
+</section>
+</body></html>

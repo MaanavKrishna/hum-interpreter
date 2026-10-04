@@ -257,6 +257,8 @@ function teach(label) {
 }
 
 // ---------- sound type: the objective layer ----------
+// Body sounds are not attempts to communicate, so Hum names them and does not guess a meaning.
+const BODY = new Set(['cough', 'sneeze', 'sniff', 'throat clearing', 'yawn', 'breathing']);
 const PLURAL = { cry: 'cries', laugh: 'laughs', 'other voice': 'other voice sounds', breathing: 'breathing sounds', 'throat clearing': 'throat clearings' };
 const plural = (t, n = 2) => (n === 1 ? t : PLURAL[t] ?? `${t}s`);
 const named = (t) => (t === 'other voice' ? 'another voice sound' : t === 'breathing' ? 'breathing' : `${/^[aeiou]/.test(t) ? 'an' : 'a'} ${t}`);
@@ -377,7 +379,13 @@ async function hear(wav, { playIt = false, truth = null, track = false } = {}) {
     const result = current.voice.interpret(lastEmb);
     renderAnswer(result, truth);
     renderType(types);
-    if (lastType && patternLine(lastType)) $('answer-sub').insertAdjacentHTML('afterend', `<p class="pattern answer-sub">${esc(patternLine(lastType))}</p>`);
+    if (types && BODY.has(types[0].type) && types[0].p >= 0.6) {
+      const t = types[0].type;
+      $('answer-main').textContent = `${named(t).replace(/^./, (c) => c.toUpperCase())}.`;
+      $('answer-sub').textContent = 'A body sound, not an attempt to communicate, so Hum does not guess a meaning. It is counted in today\'s log while listening.';
+      $('bars').hidden = true;
+    }
+    if (lastType && !BODY.has(lastType) && patternLine(lastType)) $('answer-sub').insertAdjacentHTML('afterend', `<p class="pattern answer-sub">${esc(patternLine(lastType))}</p>`);
     if (track && lastType) logSound(lastType);
     if (track && result.ranked.length) {
       recent.push({ at: Date.now() / 1000, label: result.ranked[0].label, type: lastType, sure: result.set.length === 1, upset: upsetProbability(result) });

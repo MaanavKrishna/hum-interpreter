@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: #edf0f5; color: #171a33; font-family: "Atkinson Hyperlegible", sans-serif; position: relative; overflow: hidden; }
+  .disc { position: absolute; right: 9vw; top: 50%; width: 30vw; height: 30vw; margin-top: -15vw; border-radius: 50%; background: #4b3fd1; animation: pulse 2.4s ease-in-out infinite; }
+  .ring { position: absolute; right: 6vw; top: 50%; width: 36vw; height: 36vw; margin-top: -18vw; border-radius: 50%; border: 3px solid #4b3fd1; opacity: .35; animation: pulse 2.4s ease-in-out infinite .3s; }
+  @keyframes pulse { 50% { transform: scale(1.04); } }
+  .mark { position: absolute; left: 8vw; top: 9vh; font-family: "Bricolage Grotesque"; font-weight: 800; font-size: 6vw; letter-spacing: -.2vw; }
+  h1 { position: absolute; left: 8vw; top: 30vh; margin: 0; width: 48vw; font-family: "Bricolage Grotesque"; font-weight: 800; font-size: 6.6vw; line-height: .98; letter-spacing: -.28vw; }
+  .foot { position: absolute; left: 8vw; bottom: 10vh; font-size: 2.1vw; color: #586080; max-width: 50vw; }
+</style></head>
+<body>
+  <div class="ring"></div><div class="disc"></div>
+  <div class="mark">hum</div>
+  <h1 id="h"></h1>
+  <div class="foot" id="f"></div>
+  <script>
+    const outro = location.hash === '#outro';
+    document.getElementById('h').textContent = outro ? 'Every sound means something.' : 'For people who speak without words.';
+    document.getElementById('f').textContent = outro
+      ? 'maanavkrishna.github.io/hum-interpreter'
+      : 'Names the sound. Hints at the meaning. Runs on your device.';
+  </script>
+</body></html>
