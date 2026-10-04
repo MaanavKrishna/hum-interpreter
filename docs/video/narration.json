@@ -1,11 +1,11 @@
 [
- "Some people communicate with sounds instead of words. Their parents learn what each sound means. A new teacher, nurse, or babysitter starts from nothing. Hum is built to help them.",
- "Hum listens, and answers in two layers. The first is what kind of sound it heard: a laugh, a cry, a scream, a cough. Tested on thousands of recordings from people it never heard, it names the sound correctly ninety percent of the time.",
- "The second layer is what the sound likely means for this person, learned from their family. When Hum is torn, it says so, and offers two meanings instead of a confident guess.",
- "If the caregiver knows the answer, one tap teaches Hum. It learns on the device, straight away, and nothing is uploaded.",
- "In keep listening mode, Hum picks out each sound by itself, keeps a daily log, and raises an alert when several sounds in a row lean upset.",
- "Everything Hum learns becomes a printable passport, and a small voice file that carries this person's sounds to the next caregiver's phone.",
+ "Some people communicate with sounds instead of words. Their families learn what each sound means, but a new teacher, nurse, or babysitter starts from nothing. Hum helps them understand.",
+ "Hum answers in two layers. First, what kind of sound it heard: a cough, a sneeze, a laugh, a cry. On recordings from people it has never heard, it names the sound correctly ninety percent of the time. Body sounds are named, never interpreted.",
+ "Second, what the sound likely means for this person, learned from their family. When Hum is torn between two meanings, it says so, instead of guessing.",
+ "If the caregiver knows the answer, one tap teaches Hum. It learns right on the device, and nothing is ever uploaded.",
+ "In keep listening mode, Hum picks out each sound on its own, keeps a daily log, and raises an alert when several sounds in a row sound upset.",
+ "Everything it learns becomes a printable passport, and a small voice file that carries this person's sounds to the next caregiver's phone.",
  "This map shows one person's sounds. Each colour is a meaning their family gave.",
- "And Hum is honest about its limits. Telling meanings apart is hard, and for some people Hum is weak. Every score is in the app, measured on recording sessions it never trained on, including the ideas that did not work.",
- "Hum. Every sound means something. Built on the ReCANVo dataset from MIT, for the ML Empowerment Build Challenge."
+ "And Hum is honest about its limits. Every score is measured on recordings it never trained on, including the ideas that did not work, so caregivers know exactly when to trust it.",
+ "Hum. Every sound means something."
 ]
