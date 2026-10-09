@@ -6,3 +6,5 @@ __pycache__/
 /runs/
 .playwright-mcp/
 SUBMISSION.md
+docs/video/voices/
+docs/video/hum-demo-silent.mp4
